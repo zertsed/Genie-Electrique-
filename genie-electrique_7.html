@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Génie Électrique — Plateforme pédagogique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* ── RESET & BASE ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #F7F6F2;
+    --surface:  #FFFFFF;
+    --border:   #E4E2DA;
+    --border2:  #D0CEC5;
+    --text:     #1A1917;
+    --muted:    #6B6860;
+    --faint:    #9E9C97;
+    --blue:     #1A56DB;
+    --blue-bg:  #EBF0FD;
+    --green:    #057A55;
+    --green-bg: #DEF7EC;
+    --amber:    #92400E;
+    --amber-bg: #FEF3C7;
+    --red:      #9B1C1C;
+    --red-bg:   #FDE8E8;
+    --radius:   10px;
+    --radius-lg:16px;
+    --shadow:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md:0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+  }
+  html { font-size: 15px; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  button { cursor: pointer; font-family: inherit; }
+  input, textarea, select { font-family: inherit; }
+
+  /* ── LAYOUT ────────────────────────────────────────────────── */
+  .app { display: none; }
+  .app.visible { display: flex; min-height: 100vh; }
+
+  /* sidebar */
+  .sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar-logo {
+    padding: 1.5rem 1.25rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--text);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: .6rem;
+  }
+  .sidebar-logo .logo-icon svg { width: 18px; height: 18px; stroke: white; fill: none; }
+  .sidebar-logo .logo-title { font-size: .85rem; font-weight: 600; letter-spacing: -.01em; }
+  .sidebar-logo .logo-sub { font-size: .72rem; color: var(--muted); margin-top: 1px; }
+
+  .sidebar-section { padding: .5rem .75rem .25rem; }
+  .sidebar-section-label {
+    font-size: .65rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--faint); padding: .5rem .5rem .25rem;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: .5rem .75rem; border-radius: 7px;
+    font-size: .82rem; font-weight: 400; color: var(--muted);
+    cursor: pointer; transition: all .12s; border: none; background: none;
+    width: 100%; text-align: left;
+  }
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .nav-item:hover { background: var(--bg); color: var(--text); }
+  .nav-item.active { background: var(--text); color: white; font-weight: 500; }
+  .nav-item.active svg { stroke: white; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 1rem .75rem;
+    border-top: 1px solid var(--border);
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: 9px;
+    padding: .5rem .6rem; border-radius: 8px;
+    background: var(--bg);
+  }
+  .user-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--text); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; font-weight: 600; flex-shrink: 0;
+  }
+  .user-name { font-size: .78rem; font-weight: 500; }
+  .user-role { font-size: .68rem; color: var(--muted); }
+  .logout-btn {
+    margin-top: .5rem; width: 100%;
+    padding: .45rem; border-radius: 7px;
+    border: 1px solid var(--border); background: none;
+    font-size: .78rem; color: var(--muted);
+    transition: all .12s;
+  }
+  .logout-btn:hover { background: var(--red-bg); color: var(--red); border-color: #f5c6c6; }
+
+  /* main content */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .page-title { font-size: 1.05rem; font-weight: 600; letter-spacing: -.02em; }
+  .page-sub { font-size: .78rem; color: var(--muted); margin-top: 1px; }
+  .content { padding: 2rem; flex: 1; }
+
+  /* ── AUTH SCREEN ────────────────────────────────────────────── */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+    padding: 1.5rem;
+  }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 2rem;
+    width: 100%; max-width: 380px;
+    box-shadow: var(--shadow-md);
+  }
+  .auth-logo {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: var(--text); display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+  .auth-logo svg { width: 22px; height: 22px; stroke: white; fill: none; }
+  .auth-title { font-size: 1.3rem; font-weight: 600; letter-spacing: -.02em; margin-bottom: .25rem; }
+  .auth-sub { font-size: .82rem; color: var(--muted); margin-bottom: 1.75rem; }
+
+  .auth-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 8px; padding: 3px; margin-bottom: 1.5rem; }
+  .auth-tab {
+    flex: 1; padding: .4rem; border-radius: 6px;
+    font-size: .78rem; font-weight: 500; border: none; background: none;
+    color: var(--muted); transition: all .12s;
+  }
+  .auth-tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+  .form-group { margin-bottom: 1rem; }
+  .form-label { display: block; font-size: .78rem; font-weight: 500; margin-bottom: .4rem; color: var(--text); }
+  .form-input {
+    width: 100%; padding: .6rem .85rem;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: .85rem; color: var(--text); background: var(--surface);
+    transition: border-color .12s;
+    outline: none;
+  }
+  .form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
+  .form-select {
+    width: 100%; padding: .6rem .85rem;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: .85rem; color: var(--text); background: var(--surface);
+    outline: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6860' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .75rem center;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: .6rem 1.1rem; border-radius: var(--radius);
+    font-size: .83rem; font-weight: 500; border: none;
+    transition: all .12s; cursor: pointer;
+  }
+  .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .btn-primary { background: var(--text); color: white; }
+  .btn-primary:hover { background: #2d2c29; }
+  .btn-outline {
+    background: none; color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover { background: var(--bg); }
+  .btn-sm { padding: .38rem .8rem; font-size: .78rem; }
+  .btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid #f5c6c6; }
+  .btn-danger:hover { background: #fbd5d5; }
+  .btn-success { background: var(--green-bg); color: var(--green); border: 1px solid #a7f3d0; }
+  .btn-full { width: 100%; }
+
+  .alert {
+    padding: .65rem 1rem; border-radius: var(--radius);
+    font-size: .8rem; margin-bottom: 1rem;
+  }
+  .alert-error { background: var(--red-bg); color: var(--red); border: 1px solid #f5c6c6; }
+  .alert-success { background: var(--green-bg); color: var(--green); border: 1px solid #a7f3d0; }
+
+  /* ── CARDS / TILES ──────────────────────────────────────────── */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+  }
+  .card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: .9rem;
+  }
+  .card-icon {
+    width: 34px; height: 34px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .card-title { font-size: .85rem; font-weight: 600; margin-bottom: .15rem; }
+  .card-sub { font-size: .75rem; color: var(--muted); }
+
+  .stat-card { text-align: center; }
+  .stat-value { font-size: 1.8rem; font-weight: 600; letter-spacing: -.03em; font-family: 'DM Mono', monospace; }
+  .stat-label { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+
+  /* resource list */
+  .resource-list { display: flex; flex-direction: column; gap: 6px; }
+  .resource-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: .55rem .75rem; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg);
+    font-size: .8rem; transition: border-color .12s;
+  }
+  .resource-item:hover { border-color: var(--border2); }
+  .resource-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .resource-name { flex: 1; font-weight: 400; color: var(--text); }
+  .resource-tag {
+    font-size: .65rem; padding: 2px 7px; border-radius: 20px;
+    font-weight: 500; background: var(--bg); color: var(--faint);
+    border: 1px solid var(--border);
+  }
+
+  /* TD cards */
+  .td-list { display: flex; flex-direction: column; gap: 14px; }
+  .td-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .td-card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .td-card-title { font-size: .9rem; font-weight: 600; }
+  .td-card-meta { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+  .td-card-body { padding: 1.25rem; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: .68rem; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+  }
+  .badge-open { background: var(--green-bg); color: var(--green); }
+  .badge-closed { background: var(--bg); color: var(--faint); border: 1px solid var(--border); }
+  .badge-graded { background: var(--blue-bg); color: var(--blue); }
+  .badge-pending { background: var(--amber-bg); color: var(--amber); }
+
+  .question-block { margin-bottom: 1.25rem; }
+  .question-label { font-size: .8rem; font-weight: 600; margin-bottom: .5rem; color: var(--text); }
+  .question-text { font-size: .82rem; color: var(--muted); margin-bottom: .6rem; line-height: 1.5; }
+  textarea.answer-input {
+    width: 100%; padding: .7rem .9rem;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: .82rem; line-height: 1.6;
+    resize: vertical; min-height: 80px;
+    background: var(--bg); color: var(--text);
+    outline: none; transition: border-color .12s;
+  }
+  textarea.answer-input:focus { border-color: var(--blue); background: white; box-shadow: 0 0 0 3px rgba(26,86,219,.08); }
+
+  .file-upload-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 1.25rem; text-align: center;
+    cursor: pointer; transition: all .15s;
+    background: var(--bg);
+  }
+  .file-upload-zone:hover { border-color: var(--blue); background: var(--blue-bg); }
+  .file-upload-zone input[type=file] { display: none; }
+  .file-upload-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .file-upload-text { font-size: .78rem; color: var(--muted); }
+
+  .grade-display {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: .35rem .8rem; border-radius: 8px;
+    background: var(--blue-bg); border: 1px solid #c3d6f9;
+    font-size: .82rem; font-weight: 600; color: var(--blue);
+    font-family: 'DM Mono', monospace;
+  }
+  .comment-box {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .75rem 1rem;
+    font-size: .8rem; color: var(--muted); line-height: 1.6;
+    font-style: italic;
+  }
+
+  /* admin forms */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--shadow);
+  }
+  .panel-title { font-size: .9rem; font-weight: 600; margin-bottom: 1.1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--border); }
+
+  .inline-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+  .inline-form .form-group { margin-bottom: 0; flex: 1; min-width: 120px; }
+
+  /* table */
+  .data-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .data-table th {
+    text-align: left; font-weight: 600; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .05em;
+    color: var(--faint); padding: .6rem .75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td { padding: .7rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--bg); }
+
+  /* spinner */
+  .spinner {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--text);
+    animation: spin .7s linear infinite; display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* loading overlay */
+  #loading {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #loading .loading-logo {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: var(--text); display: flex; align-items: center; justify-content: center;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(.95)} }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem;
+    background: var(--text); color: white;
+    padding: .7rem 1.2rem; border-radius: var(--radius);
+    font-size: .82rem; font-weight: 500;
+    transform: translateY(100px); opacity: 0;
+    transition: all .25s; z-index: 999;
+    box-shadow: var(--shadow-md);
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  /* empty state */
+  .empty-state {
+    text-align: center; padding: 3rem 1rem;
+    color: var(--faint);
+  }
+  .empty-state svg { width: 36px; height: 36px; stroke: var(--border2); fill: none; margin-bottom: .75rem; }
+  .empty-state p { font-size: .83rem; }
+
+  /* section label */
+  .section-heading {
+    font-size: .72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--faint);
+    margin-bottom: .75rem; margin-top: 1.75rem;
+  }
+  .section-heading:first-child { margin-top: 0; }
+
+  /* divider */
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+  /* setup screen */
+  #setup-screen {
+    min-height: 100vh;
+    display: none; align-items: center; justify-content: center;
+    background: var(--bg); padding: 2rem;
+  }
+  #setup-screen.visible { display: flex; }
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 520px; width: 100%;
+    box-shadow: var(--shadow-md);
+  }
+  .setup-step {
+    display: flex; align-items: flex-start; gap: .75rem;
+    padding: .85rem; border-radius: var(--radius);
+    border: 1px solid var(--border); margin-bottom: .75rem;
+    font-size: .82rem; line-height: 1.55;
+  }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--text); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+  code.inline {
+    font-family: 'DM Mono', monospace;
+    font-size: .78rem; background: var(--bg);
+    border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px;
+  }
+  .copy-field {
+    display: flex; gap: 6px; align-items: center; margin-top: .5rem;
+  }
+  .copy-field input {
+    flex: 1; font-family: 'DM Mono', monospace; font-size: .75rem;
+    padding: .45rem .75rem; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--bg); color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="loading-logo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+  </div>
+</div>
+
+<!-- Setup screen (shown when Supabase not configured) -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div style="width:40px;height:40px;border-radius:9px;background:var(--text);display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    </div>
+    <h1 style="font-size:1.3rem;font-weight:600;letter-spacing:-.02em;margin-bottom:.3rem;">Configuration initiale</h1>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:1.75rem;">Connectez votre base de données Supabase en 3 étapes (5 min, gratuit).</p>
+
+    <div class="setup-step">
+      <div class="step-num">1</div>
+      <div>
+        <strong>Créez un compte Supabase</strong><br>
+        Rendez-vous sur <a href="https://supabase.com" target="_blank">supabase.com</a> → New project. Notez votre <code class="inline">Project URL</code> et <code class="inline">anon key</code> (Settings → API).
+      </div>
+    </div>
+    <div class="setup-step">
+      <div class="step-num">2</div>
+      <div>
+        <strong>Créez les tables</strong><br>
+        Dans Supabase → SQL Editor, collez et exécutez ce script :
+        <div class="copy-field" style="margin-top:.6rem;">
+          <input type="text" id="sql-preview" readonly value="Cliquez 'Copier le SQL' →">
+          <button class="btn btn-outline btn-sm" onclick="copySql()">Copier le SQL</button>
+        </div>
+      </div>
+    </div>
+    <div class="setup-step">
+      <div class="step-num">3</div>
+      <div>
+        <strong>Entrez vos clés ci-dessous</strong>
+      </div>
+    </div>
+
+    <div style="margin-top:1.25rem;">
+      <div class="form-group">
+        <label class="form-label">Project URL</label>
+        <input type="text" class="form-input" id="setup-url" placeholder="https://xxxx.supabase.co">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Anon Key</label>
+        <input type="text" class="form-input" id="setup-key" placeholder="eyJhbGciOiJIUzI1...">
+      </div>
+      <div id="setup-alert"></div>
+      <button class="btn btn-primary btn-full" onclick="saveConfig()">
+        <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+        Enregistrer et démarrer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Auth Screen -->
+<div id="auth-screen" style="display:none;">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg viewBox="0 0 24 24" stroke="white" fill="none" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    </div>
+    <h1 class="auth-title">Génie Électrique</h1>
+    <p class="auth-sub">Plateforme pédagogique</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Connexion</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Inscription</button>
+    </div>
+
+    <!-- Login -->
+    <div id="login-form">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="login-email" placeholder="prenom.nom@ecole.fr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe</label>
+        <input type="password" class="form-input" id="login-password" placeholder="••••••••">
+      </div>
+      <div id="login-alert"></div>
+      <button class="btn btn-primary btn-full" onclick="handleLogin()">Se connecter</button>
+    </div>
+
+    <!-- Register -->
+    <div id="register-form" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Prénom</label>
+          <input type="text" class="form-input" id="reg-firstname" placeholder="Jean">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nom</label>
+          <input type="text" class="form-input" id="reg-lastname" placeholder="Dupont">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="reg-email" placeholder="prenom.nom@ecole.fr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe</label>
+        <input type="password" class="form-input" id="reg-password" placeholder="Min. 6 caractères">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Classe</label>
+        <select class="form-select" id="reg-class">
+          <option value="seconde">Seconde</option>
+          <option value="premiere">Première</option>
+          <option value="terminale">Terminale</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Code d'accès classe</label>
+        <input type="text" class="form-input" id="reg-code" placeholder="Fourni par le professeur">
+      </div>
+      <div id="reg-alert"></div>
+      <button class="btn btn-primary btn-full" onclick="handleRegister()">Créer mon compte</button>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app" id="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <div class="logo-title">Génie Électrique</div>
+      <div class="logo-sub">Plateforme pédagogique</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Navigation</div>
+      <button class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Tableau de bord
+      </button>
+      <button class="nav-item" onclick="navigate('documents')" id="nav-documents">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Documents
+      </button>
+      <button class="nav-item" onclick="navigate('cours')" id="nav-cours">
+        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Cours
+      </button>
+      <button class="nav-item" onclick="navigate('sequences')" id="nav-sequences">
+        <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        Séquences
+      </button>
+      <button class="nav-item" onclick="navigate('td')" id="nav-td">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Travaux dirigés
+      </button>
+      <button class="nav-item" onclick="navigate('admin')" id="nav-admin" style="display:none;">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+        Espace prof
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebar-avatar">?</div>
+        <div>
+          <div class="user-name" id="sidebar-name">—</div>
+          <div class="user-role" id="sidebar-role">—</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="handleLogout()">Se déconnecter</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="topbar-title">Tableau de bord</div>
+        <div class="page-sub" id="topbar-sub">Bienvenue</div>
+      </div>
+      <div id="topbar-actions"></div>
+    </div>
+    <div class="content" id="page-content">
+      <div style="display:flex;align-items:center;justify-content:center;height:200px;"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────
+const CONFIG_KEY = 'ge_supabase_config';
+const ADMIN_EMAIL = 'mickael.destrez@icloud.com'; // changez cette adresse pour votre email
+const CLASS_CODES = { seconde: 'SEC2025', premiere: 'PRE2025', terminale: 'TER2025' };
+
+let supabaseClient = null;
+let currentUser = null;
+let currentProfile = null;
+let currentPage = 'dashboard';
+
+// ── INIT ─────────────────────────────────────────────────────────
+async function init() {
+  const config = getConfig();
+  if (!config) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('setup-screen').classList.add('visible');
+    return;
+  }
+  try {
+    supabaseClient = window.supabase.createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: true, storage: window.sessionStorage } });
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    document.getElementById('loading').style.display = 'none';
+    if (session) {
+      await loadProfile(session.user);
+      showApp();
+    } else {
+      showAuth();
+    }
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('setup-screen').classList.add('visible');
+  }
+}
+
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem(CONFIG_KEY)); } catch { return null; }
+}
+
+async function saveConfig() {
+  const url = document.getElementById('setup-url').value.trim();
+  const key = document.getElementById('setup-key').value.trim();
+  const alertEl = document.getElementById('setup-alert');
+  if (!url || !key) { alertEl.innerHTML = '<div class="alert alert-error">Remplissez les deux champs.</div>'; return; }
+  try {
+    const client = window.supabase.createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: true, storage: window.sessionStorage }
+    });
+    // Test simple de connexion sans vérifier les tables
+    const { error } = await client.auth.getSession();
+    if (error) throw error;
+    localStorage.setItem(CONFIG_KEY, JSON.stringify({ url, key }));
+    location.reload();
+  } catch(e) {
+    alertEl.innerHTML = `<div class="alert alert-error">Impossible de se connecter. Vérifiez vos clés.<br><small>${e.message}</small></div>`;
+  }
+}
+
+// ── AUTH ─────────────────────────────────────────────────────────
+function showAuth() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  updateSidebar();
+  navigate('dashboard');
+}
+
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0 && tab==='login')||(i===1 && tab==='register')));
+  document.getElementById('login-form').style.display = tab==='login' ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab==='register' ? 'block' : 'none';
+}
+
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const alertEl = document.getElementById('login-alert');
+  alertEl.innerHTML = '<div class="alert" style="background:var(--bg);color:var(--muted);border:1px solid var(--border);">Connexion en cours…</div>';
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    await loadProfile(data.user);
+    alertEl.innerHTML = '';
+    showApp();
+  } catch(e) {
+    alertEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function handleRegister() {
+  const firstname = document.getElementById('reg-firstname').value.trim();
+  const lastname = document.getElementById('reg-lastname').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-password').value;
+  const classe = document.getElementById('reg-class').value;
+  const code = document.getElementById('reg-code').value.trim().toUpperCase();
+  const alertEl = document.getElementById('reg-alert');
+
+  if (!firstname||!lastname||!email||!pass) { alertEl.innerHTML='<div class="alert alert-error">Tous les champs sont obligatoires.</div>'; return; }
+  if (CLASS_CODES[classe] && code !== CLASS_CODES[classe]) { alertEl.innerHTML='<div class="alert alert-error">Code de classe incorrect.</div>'; return; }
+
+  alertEl.innerHTML = '<div class="alert" style="background:var(--bg);color:var(--muted);border:1px solid var(--border);">Création du compte…</div>';
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
+    if (error) throw error;
+    await supabaseClient.from('profiles').insert({ id: data.user.id, firstname, lastname, email, classe, role: 'student' });
+    await loadProfile(data.user);
+    alertEl.innerHTML = '';
+    showApp();
+  } catch(e) {
+    alertEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function loadProfile(user) {
+  currentUser = user;
+  const { data } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+  if (data) {
+    currentProfile = data;
+  } else {
+    // Fallback: admin
+    currentProfile = { id: user.id, email: user.email, firstname: 'Prof', lastname: '', role: 'teacher', classe: null };
+  }
+  if (user.email === ADMIN_EMAIL) currentProfile.role = 'teacher';
+}
+
+async function handleLogout() {
+  await supabaseClient.auth.signOut();
+  currentUser = null; currentProfile = null;
+  showAuth();
+}
+
+function updateSidebar() {
+  if (!currentProfile) return;
+  const initials = (currentProfile.firstname[0]||'') + (currentProfile.lastname[0]||'');
+  document.getElementById('sidebar-avatar').textContent = initials.toUpperCase() || '?';
+  document.getElementById('sidebar-name').textContent = `${currentProfile.firstname} ${currentProfile.lastname}`.trim();
+  const isTeacher = currentProfile.role === 'teacher';
+  document.getElementById('sidebar-role').textContent = isTeacher ? 'Professeur' : `Classe de ${currentProfile.classe}`;
+  document.getElementById('nav-admin').style.display = isTeacher ? 'flex' : 'none';
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + page);
+  if (navEl) navEl.classList.add('active');
+  const pages = { dashboard:'Tableau de bord', sequences:'Séquences & Séances', documents:'Documents techniques', cours:'Notions de cours', td:'Travaux dirigés', admin:'Espace professeur' };
+  document.getElementById('topbar-title').textContent = pages[page] || page;
+  document.getElementById('topbar-actions').innerHTML = '';
+  const renders = { dashboard: renderDashboard, sequences: renderSequences, documents: renderDocuments, cours: renderCours, td: renderTD, admin: renderAdmin };
+  if (renders[page]) renders[page]();
+}
+
+function setContent(html) { document.getElementById('page-content').innerHTML = html; }
+function loading() { setContent('<div style="display:flex;align-items:center;justify-content:center;height:200px;"><div class="spinner"></div></div>'); }
+
+// ── DASHBOARD ─────────────────────────────────────────────────────
+async function renderDashboard() {
+  loading();
+  const isTeacher = currentProfile.role === 'teacher';
+  if (isTeacher) {
+    const [{ count: studentCount }, { count: tdCount }, { count: subCount }, { count: docCount }] = await Promise.all([
+      supabaseClient.from('profiles').select('*', {count:'exact',head:true}).eq('role','student'),
+      supabaseClient.from('tds').select('*', {count:'exact',head:true}),
+      supabaseClient.from('submissions').select('*', {count:'exact',head:true}),
+      supabaseClient.from('resources').select('*', {count:'exact',head:true}),
+    ]);
+    setContent(`
+      <div class="grid-2" style="max-width:500px; margin-bottom:1.5rem;">
+        <div class="card stat-card"><div class="stat-value">${studentCount||0}</div><div class="stat-label">Élèves inscrits</div></div>
+        <div class="card stat-card"><div class="stat-value">${docCount||0}</div><div class="stat-label">Ressources publiées</div></div>
+        <div class="card stat-card"><div class="stat-value">${tdCount||0}</div><div class="stat-label">TD créés</div></div>
+        <div class="card stat-card"><div class="stat-value">${subCount||0}</div><div class="stat-label">Copies rendues</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Raccourcis</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="navigate('td')">Voir les TD</button>
+          <button class="btn btn-outline" onclick="navigate('admin')">Gérer le contenu</button>
+          <button class="btn btn-outline" onclick="navigate('documents')">Ajouter des documents</button>
+        </div>
+      </div>`);
+  } else {
+    const classe = currentProfile.classe;
+    const [{ data: tds }, { data: subs }] = await Promise.all([
+      supabaseClient.from('tds').select('*').eq('classe', classe).eq('is_open', true),
+      supabaseClient.from('submissions').select('td_id').eq('student_id', currentProfile.id),
+    ]);
+    const doneIds = new Set((subs||[]).map(s => s.td_id));
+    const pending = (tds||[]).filter(t => !doneIds.has(t.id));
+    setContent(`
+      <div class="panel">
+        <div class="panel-title">Bienvenue, ${currentProfile.firstname} !</div>
+        <p style="font-size:.85rem;color:var(--muted);">Classe de <strong>${classe}</strong> · ${pending.length} TD en attente de rendu.</p>
+        <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="navigate('td')">Mes travaux dirigés</button>
+          <button class="btn btn-outline" onclick="navigate('documents')">Consulter les documents</button>
+          <button class="btn btn-outline" onclick="navigate('cours')">Accéder aux cours</button>
+        </div>
+      </div>
+      ${pending.length > 0 ? `
+      <div class="section-heading">TD ouverts</div>
+      <div class="td-list">${pending.slice(0,3).map(td => `
+        <div class="td-card">
+          <div class="td-card-header">
+            <div><div class="td-card-title">${td.title}</div><div class="td-card-meta">Classe de ${td.classe}</div></div>
+            <span class="badge badge-open">Ouvert</span>
+          </div>
+          <div class="td-card-body" style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:.8rem;color:var(--muted);">${(td.questions||[]).length} question(s)</span>
+            <button class="btn btn-primary btn-sm" onclick="navigate('td')">Répondre</button>
+          </div>
+        </div>`).join('')}</div>` : ''}
+    `);
+  }
+}
+
+// ── DOCUMENTS ─────────────────────────────────────────────────────
+async function renderDocuments() {
+  loading();
+  const isTeacher = currentProfile.role === 'teacher';
+  const classe = isTeacher ? null : currentProfile.classe;
+  let query = supabaseClient.from('resources').select('*').eq('type', 'document').order('created_at', {ascending: false});
+  if (classe) query = query.eq('classe', classe);
+  const { data: docs } = await query;
+  renderResourcePage(docs||[], 'document', 'Documents techniques', isTeacher);
+}
+
+async function renderCours() {
+  loading();
+  const isTeacher = currentProfile.role === 'teacher';
+  const classe = isTeacher ? null : currentProfile.classe;
+  let query = supabaseClient.from('resources').select('*').eq('type', 'cours').order('created_at', {ascending: false});
+  if (classe) query = query.eq('classe', classe);
+  const { data: docs } = await query;
+  renderResourcePage(docs||[], 'cours', 'Notions de cours', isTeacher);
+}
+
+function renderResourcePage(items, type, title, isTeacher) {
+  const classes = ['seconde', 'premiere', 'terminale'];
+  const colors = { seconde: '#185FA5', premiere: '#3B6D11', terminale: '#854F0B' };
+
+  if (isTeacher) {
+    const grouped = {};
+    classes.forEach(c => grouped[c] = items.filter(i => i.classe === c));
+    setContent(`
+      ${classes.map(c => `
+        <div class="section-heading">Classe de ${c}</div>
+        <div class="resource-list" style="margin-bottom:1rem;">
+          ${grouped[c].length === 0 ? '<p style="font-size:.8rem;color:var(--faint);padding:.5rem 0;">Aucun document pour cette classe.</p>' :
+            grouped[c].map(r => `
+              <div class="resource-item">
+                <div class="resource-dot" style="background:${colors[c]||'#888'};"></div>
+                <span class="resource-name">${r.title}</span>
+                <span class="resource-tag">${r.classe}</span>
+                ${r.url ? `<a href="${r.url}" target="_blank" class="btn btn-outline btn-sm">Ouvrir</a>` : ''}
+                <button class="btn btn-danger btn-sm" onclick="deleteResource('${r.id}')">Suppr.</button>
+              </div>`).join('')}
+        </div>`).join('')}
+      <div class="panel" style="margin-top:1rem;">
+        <div class="panel-title">Ajouter une ressource</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div class="form-group"><label class="form-label">Titre</label><input class="form-input" id="res-title" placeholder="Ex: Loi d'Ohm"></div>
+          <div class="form-group"><label class="form-label">Classe</label><select class="form-select" id="res-class"><option value="seconde">Seconde</option><option value="premiere">Première</option><option value="terminale">Terminale</option></select></div>
+          <div class="form-group"><label class="form-label">Lien (URL)</label><input class="form-input" id="res-url" placeholder="https://..."></div>
+        </div>
+        <button class="btn btn-primary" onclick="addResource('${type}')">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Publier
+        </button>
+      </div>`);
+  } else {
+    setContent(`
+      ${items.length === 0 ? `<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>Aucun document disponible pour votre classe.</p></div>` :
+        `<div class="resource-list">${items.map(r => `
+          <div class="resource-item">
+            <div class="resource-dot" style="background:var(--blue);"></div>
+            <span class="resource-name">${r.title}</span>
+            ${r.url ? `<a href="${r.url}" target="_blank" class="btn btn-outline btn-sm">Ouvrir ↗</a>` : '<span class="resource-tag">Pas de lien</span>'}
+          </div>`).join('')}</div>`}
+    `);
+  }
+}
+
+async function addResource(type) {
+  const title = document.getElementById('res-title').value.trim();
+  const classe = document.getElementById('res-class').value;
+  const url = document.getElementById('res-url').value.trim();
+  if (!title) { toast('Donnez un titre à la ressource.'); return; }
+  const { error } = await supabaseClient.from('resources').insert({ title, classe, url: url||null, type });
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Ressource publiée !');
+  if (type === 'document') renderDocuments(); else renderCours();
+}
+
+async function deleteResource(id) {
+  if (!confirm('Supprimer cette ressource ?')) return;
+  await supabaseClient.from('resources').delete().eq('id', id);
+  toast('Supprimé.');
+  if (currentPage === 'documents') renderDocuments(); else renderCours();
+}
+
+// ── TD ────────────────────────────────────────────────────────────
+async function renderTD() {
+  loading();
+  const isTeacher = currentProfile.role === 'teacher';
+  const classe = isTeacher ? null : currentProfile.classe;
+  let query = supabaseClient.from('tds').select('*').order('created_at', {ascending: false});
+  if (classe) query = query.eq('classe', classe);
+  const { data: tds } = await query;
+
+  if (isTeacher) {
+    renderTDAdmin(tds||[]);
+  } else {
+    const { data: subs } = await supabaseClient.from('submissions').select('*').eq('student_id', currentProfile.id);
+    renderTDStudent(tds||[], subs||[]);
+  }
+}
+
+function renderTDStudent(tds, subs) {
+  if (tds.length === 0) {
+    setContent(`<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><p>Aucun TD disponible pour votre classe.</p></div>`);
+    return;
+  }
+  const subMap = {};
+  subs.forEach(s => subMap[s.td_id] = s);
+
+  setContent(`<div class="td-list">${tds.map(td => {
+    const sub = subMap[td.id];
+    const done = !!sub;
+    const graded = sub && sub.grade !== null;
+    return `
+    <div class="td-card">
+      <div class="td-card-header">
+        <div>
+          <div class="td-card-title">${td.title}</div>
+          <div class="td-card-meta">Classe de ${td.classe} · ${(td.questions||[]).length} question(s)</div>
+        </div>
+        <span class="badge ${!td.is_open ? 'badge-closed' : done ? (graded ? 'badge-graded' : 'badge-pending') : 'badge-open'}">
+          ${!td.is_open ? 'Fermé' : done ? (graded ? 'Noté' : 'Rendu') : 'Ouvert'}
+        </span>
+      </div>
+      <div class="td-card-body">
+        ${done ? renderSubmissionView(sub, td) : (td.is_open ? renderTDForm(td) : '<p style="font-size:.82rem;color:var(--faint);">Ce TD est fermé.</p>')}
+      </div>
+    </div>`;
+  }).join('')}</div>`);
+}
+
+function renderTDForm(td) {
+  const qs = td.questions || [];
+  return `
+    ${qs.map((q, i) => `
+      <div class="question-block">
+        <div class="question-label">Question ${i+1}</div>
+        <div class="question-text">${q}</div>
+        <textarea class="answer-input" id="ans-${td.id}-${i}" placeholder="Votre réponse…"></textarea>
+      </div>`).join('')}
+    ${td.allow_file ? `
+      <div class="question-block">
+        <div class="question-label">Fichier joint (facultatif)</div>
+        <label class="file-upload-zone" for="file-${td.id}">
+          <div class="file-upload-icon">📎</div>
+          <div class="file-upload-text">Cliquez pour joindre un fichier (PDF, image)</div>
+          <input type="file" id="file-${td.id}" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+        <div id="file-name-${td.id}" style="font-size:.75rem;color:var(--muted);margin-top:.3rem;"></div>
+      </div>` : ''}
+    <button class="btn btn-primary" onclick="submitTD('${td.id}', ${qs.length}, ${!!td.allow_file})">
+      <svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+      Rendre le TD
+    </button>`;
+}
+
+function renderSubmissionView(sub, td) {
+  const answers = sub.answers || [];
+  const qs = td.questions || [];
+  return `
+    ${qs.map((q, i) => `
+      <div class="question-block">
+        <div class="question-label">Question ${i+1}</div>
+        <div class="question-text">${q}</div>
+        <div class="comment-box">${answers[i] || '<em>Pas de réponse</em>'}</div>
+      </div>`).join('')}
+    ${sub.file_url ? `<div style="margin-bottom:1rem;"><a href="${sub.file_url}" target="_blank" class="btn btn-outline btn-sm">📎 Voir le fichier joint</a></div>` : ''}
+    ${sub.grade !== null ? `
+      <div style="display:flex;align-items:center;gap:10px;margin-top:.5rem;">
+        <div class="grade-display">Note : ${sub.grade}/20</div>
+        ${sub.comment ? `<div class="comment-box" style="flex:1;">${sub.comment}</div>` : ''}
+      </div>` : `<p style="font-size:.78rem;color:var(--faint);font-style:italic;">En attente de correction.</p>`}`;
+}
+
+async function submitTD(tdId, numQuestions, allowFile) {
+  const answers = [];
+  for (let i = 0; i < numQuestions; i++) {
+    const el = document.getElementById(`ans-${tdId}-${i}`);
+    answers.push(el ? el.value.trim() : '');
+  }
+
+  let fileUrl = null;
+  if (allowFile) {
+    const fileInput = document.getElementById(`file-${tdId}`);
+    if (fileInput && fileInput.files[0]) {
+      const file = fileInput.files[0];
+      const path = `${currentProfile.id}/${tdId}/${file.name}`;
+      const { error: upErr } = await supabaseClient.storage.from('submissions').upload(path, file, { upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabaseClient.storage.from('submissions').getPublicUrl(path);
+        fileUrl = urlData.publicUrl;
+      }
+    }
+  }
+
+  const { error } = await supabaseClient.from('submissions').insert({
+    td_id: tdId, student_id: currentProfile.id, answers, file_url: fileUrl
+  });
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('TD rendu avec succès !');
+  renderTD();
+}
+
+function renderTDAdmin(tds) {
+  const classes = ['seconde', 'premiere', 'terminale'];
+  const grouped = {};
+  classes.forEach(c => grouped[c] = tds.filter(t => t.classe === c));
+
+  setContent(`
+    <div class="panel">
+      <div class="panel-title">Créer un nouveau TD</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="form-group"><label class="form-label">Titre du TD</label><input class="form-input" id="td-title" placeholder="Ex: TD 3 — Redressement PD3"></div>
+        <div class="form-group"><label class="form-label">Classe</label><select class="form-select" id="td-class"><option value="seconde">Seconde</option><option value="premiere">Première</option><option value="terminale">Terminale</option></select></div>
+      </div>
+      <div id="td-questions-list"></div>
+      <button class="btn btn-outline btn-sm" onclick="addQuestionField()" style="margin-bottom:1rem;">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Ajouter une question
+      </button>
+      <br>
+      <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;margin-bottom:1rem;cursor:pointer;">
+        <input type="checkbox" id="td-allow-file"> Autoriser les élèves à joindre un fichier
+      </label>
+      <button class="btn btn-primary" onclick="createTD()">Créer et publier le TD</button>
+    </div>
+
+    ${classes.map(c => `
+      <div class="section-heading">Classe de ${c}</div>
+      ${grouped[c].length === 0 ? '<p style="font-size:.8rem;color:var(--faint);margin-bottom:1rem;">Aucun TD pour cette classe.</p>' :
+        `<div class="td-list" style="margin-bottom:1rem;">${grouped[c].map(td => `
+          <div class="td-card">
+            <div class="td-card-header">
+              <div>
+                <div class="td-card-title">${td.title}</div>
+                <div class="td-card-meta">${(td.questions||[]).length} question(s)</div>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span class="badge ${td.is_open ? 'badge-open' : 'badge-closed'}">${td.is_open ? 'Ouvert' : 'Fermé'}</span>
+                <button class="btn btn-outline btn-sm" onclick="toggleTD('${td.id}', ${td.is_open})">${td.is_open ? 'Fermer' : 'Ouvrir'}</button>
+                <button class="btn btn-outline btn-sm" onclick="viewSubmissions('${td.id}', '${encodeURIComponent(td.title)}')">Copies</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteTD('${td.id}')">Suppr.</button>
+              </div>
+            </div>
+          </div>`).join('')}</div>`}
+    `).join('')}
+  `);
+  addQuestionField();
+}
+
+let questionCount = 0;
+function addQuestionField() {
+  questionCount++;
+  const list = document.getElementById('td-questions-list');
+  if (!list) return;
+  const div = document.createElement('div');
+  div.className = 'question-block';
+  div.id = `q-block-${questionCount}`;
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+      <div class="question-label">Question ${questionCount}</div>
+      <button class="btn btn-danger btn-sm" onclick="document.getElementById('q-block-${questionCount}').remove()">Retirer</button>
+    </div>
+    <textarea class="answer-input" id="q-text-${questionCount}" placeholder="Énoncé de la question…" style="min-height:60px;"></textarea>`;
+  list.appendChild(div);
+}
+
+async function createTD() {
+  const title = document.getElementById('td-title').value.trim();
+  const classe = document.getElementById('td-class').value;
+  const allowFile = document.getElementById('td-allow-file').checked;
+  if (!title) { toast('Donnez un titre au TD.'); return; }
+  const questions = [];
+  document.querySelectorAll('[id^="q-text-"]').forEach(el => { if (el.value.trim()) questions.push(el.value.trim()); });
+  if (questions.length === 0) { toast('Ajoutez au moins une question.'); return; }
+  const { error } = await supabaseClient.from('tds').insert({ title, classe, questions, allow_file: allowFile, is_open: true });
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('TD publié !');
+  questionCount = 0;
+  renderTD();
+}
+
+async function toggleTD(id, isOpen) {
+  await supabaseClient.from('tds').update({ is_open: !isOpen }).eq('id', id);
+  renderTD();
+}
+
+async function deleteTD(id) {
+  if (!confirm('Supprimer ce TD et toutes ses copies ?')) return;
+  await supabaseClient.from('submissions').delete().eq('td_id', id);
+  await supabaseClient.from('tds').delete().eq('id', id);
+  toast('TD supprimé.');
+  renderTD();
+}
+
+async function viewSubmissions(tdId, tdTitle) {
+  loading();
+  document.getElementById('topbar-title').textContent = 'Copies — ' + decodeURIComponent(tdTitle);
+  const { data: subs } = await supabaseClient.from('submissions').select('*, profiles(firstname, lastname, classe)').eq('td_id', tdId);
+  const { data: td } = await supabaseClient.from('tds').select('questions').eq('id', tdId).single();
+  const qs = (td && td.questions) || [];
+
+  setContent(`
+    <button class="btn btn-outline btn-sm" onclick="navigate('td')" style="margin-bottom:1.25rem;">← Retour aux TD</button>
+    ${!subs || subs.length === 0 ? '<div class="empty-state"><p>Aucune copie rendue pour ce TD.</p></div>' :
+      `<div class="td-list">${subs.map(sub => `
+        <div class="td-card">
+          <div class="td-card-header">
+            <div>
+              <div class="td-card-title">${sub.profiles?.firstname||''} ${sub.profiles?.lastname||''}</div>
+              <div class="td-card-meta">Classe de ${sub.profiles?.classe||'?'}</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              ${sub.grade !== null ? `<div class="grade-display">${sub.grade}/20</div>` : '<span class="badge badge-pending">Non noté</span>'}
+            </div>
+          </div>
+          <div class="td-card-body">
+            ${qs.map((q, i) => `
+              <div class="question-block">
+                <div class="question-label">Q${i+1} — <span style="font-weight:400;color:var(--muted);">${q}</span></div>
+                <div class="comment-box">${(sub.answers||[])[i] || '<em>Pas de réponse</em>'}</div>
+              </div>`).join('')}
+            ${sub.file_url ? `<a href="${sub.file_url}" target="_blank" class="btn btn-outline btn-sm">📎 Fichier joint</a>` : ''}
+            <hr class="divider">
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">Note /20</label>
+                <input type="number" min="0" max="20" step="0.5" class="form-input" id="grade-${sub.id}" value="${sub.grade||''}" style="width:90px;">
+              </div>
+              <div class="form-group" style="margin:0;flex:1;min-width:200px;">
+                <label class="form-label">Commentaire</label>
+                <input type="text" class="form-input" id="comment-${sub.id}" value="${sub.comment||''}" placeholder="Retour pour l'élève…">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="gradeSubmission('${sub.id}', '${tdId}', '${encodeURIComponent(tdTitle)}')">Enregistrer</button>
+            </div>
+          </div>
+        </div>`).join('')}</div>`}
+  `);
+}
+
+async function gradeSubmission(subId, tdId, tdTitle) {
+  const grade = parseFloat(document.getElementById(`grade-${subId}`).value);
+  const comment = document.getElementById(`comment-${subId}`).value.trim();
+  if (isNaN(grade)) { toast('Entrez une note valide.'); return; }
+  const { error } = await supabaseClient.from('submissions').update({ grade, comment }).eq('id', subId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Note enregistrée !');
+  viewSubmissions(tdId, tdTitle);
+}
+
+// ── ADMIN PAGE ────────────────────────────────────────────────────
+async function renderAdmin() {
+  if (currentProfile.role !== 'teacher') { navigate('dashboard'); return; }
+  loading();
+  const { data: students } = await supabaseClient.from('profiles').select('*').eq('role','student').order('lastname');
+  setContent(`
+    <div class="panel">
+      <div class="panel-title">Codes d'accès par classe</div>
+      <div class="resource-list">
+        ${Object.entries(CLASS_CODES).map(([c, code]) => `
+          <div class="resource-item">
+            <div class="resource-dot" style="background:var(--blue);"></div>
+            <span class="resource-name">Classe de <strong>${c}</strong></span>
+            <code style="font-family:'DM Mono',monospace;font-size:.82rem;background:var(--bg);padding:3px 10px;border-radius:6px;border:1px solid var(--border);">${code}</code>
+          </div>`).join('')}
+      </div>
+      <p style="font-size:.75rem;color:var(--faint);margin-top:.75rem;">Modifiez ces codes dans le code source (variable CLASS_CODES) pour changer les codes d'accès.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Élèves inscrits (${(students||[]).length})</div>
+      ${!students || students.length === 0 ? '<p style="font-size:.82rem;color:var(--faint);">Aucun élève inscrit.</p>' : `
+      <table class="data-table">
+        <thead><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Classe</th></tr></thead>
+        <tbody>${students.map(s => `<tr><td>${s.lastname}</td><td>${s.firstname}</td><td style="color:var(--muted);">${s.email}</td><td><span class="badge badge-open">${s.classe}</span></td></tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+  `);
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function copySql() {
+  const sql = `
+create table profiles (
+  id uuid primary key references auth.users on delete cascade,
+  firstname text, lastname text, email text, classe text, role text default 'student'
+);
+create table resources (
+  id uuid primary key default gen_random_uuid(),
+  title text, type text, classe text, url text,
+  created_at timestamptz default now()
+);
+create table tds (
+  id uuid primary key default gen_random_uuid(),
+  title text, classe text, questions jsonb, allow_file boolean default false, is_open boolean default true,
+  created_at timestamptz default now()
+);
+create table sequences (
+  id uuid primary key default gen_random_uuid(),
+  title text, description text, classe text, objectifs text,
+  position integer default 0,
+  created_at timestamptz default now()
+);
+create table seances (
+  id uuid primary key default gen_random_uuid(),
+  sequence_id uuid references sequences on delete cascade,
+  title text, position integer default 0,
+  cours_url text, cours_title text,
+  doc_url text, doc_title text,
+  td_id uuid references tds,
+  created_at timestamptz default now()
+);
+create table submissions (
+  id uuid primary key default gen_random_uuid(),
+  td_id uuid references tds on delete cascade,
+  student_id uuid references profiles on delete cascade,
+  answers jsonb, file_url text, grade numeric, comment text,
+  created_at timestamptz default now(),
+  unique(td_id, student_id)
+);
+alter table profiles enable row level security;
+alter table resources enable row level security;
+alter table tds enable row level security;
+alter table sequences enable row level security;
+alter table seances enable row level security;
+alter table submissions enable row level security;
+create policy "Public read sequences" on sequences for select using (true);
+create policy "Public read seances" on seances for select using (true);
+create policy "Teacher sequences" on sequences for all using (true);
+create policy "Teacher seances" on seances for all using (true);
+create policy "Public read resources" on resources for select using (true);
+create policy "Public read tds" on tds for select using (true);
+create policy "Own profile" on profiles for all using (auth.uid() = id);
+create policy "Own submissions" on submissions for all using (auth.uid() = student_id);
+create policy "Teacher full" on profiles for select using (true);
+create policy "Teacher resources" on resources for all using (true);
+create policy "Teacher tds" on tds for all using (true);
+create policy "Teacher submissions" on submissions for select using (true);
+create policy "Teacher grade" on submissions for update using (true);
+`.trim();
+  navigator.clipboard.writeText(sql).then(() => toast('SQL copié dans le presse-papier !'));
+  document.getElementById('sql-preview').value = sql.substring(0, 60) + '…';
+}
+
+
+// ── SEQUENCES ────────────────────────────────────────────────────
+async function renderSequences() {
+  loading();
+  const isTeacher = currentProfile.role === 'teacher';
+  const classe = isTeacher ? null : currentProfile.classe;
+  let query = supabaseClient.from('sequences').select('*, seances(*)').order('position');
+  if (classe) query = query.eq('classe', classe);
+  const { data: sequences } = await query;
+  const { data: tds } = await supabaseClient.from('tds').select('id, title, classe');
+
+  if (isTeacher) renderSequencesTeacher(sequences||[], tds||[]);
+  else renderSequencesStudent(sequences||[]);
+}
+
+function renderSequencesStudent(sequences) {
+  if (sequences.length === 0) {
+    setContent('<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><p>Aucune séquence disponible pour votre classe.</p></div>');
+    return;
+  }
+  setContent(sequences.map((seq, si) => `
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Séquence ${si+1} — ${seq.title}</div>
+          <div class="card-sub">${seq.description||''}</div>
+        </div>
+        <span class="badge badge-open">${(seq.seances||[]).length} séance(s)</span>
+      </div>
+      ${seq.objectifs ? `<div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;padding:.6rem .9rem;background:var(--bg);border-radius:var(--radius);border-left:3px solid var(--blue);">
+        <strong style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;">Objectifs</strong><br>${seq.objectifs}
+      </div>` : ''}
+      ${(seq.seances||[]).sort((a,b)=>a.position-b.position).map((s,i) => `
+        <div style="border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:.6rem;background:var(--surface);">
+          <div style="font-size:.85rem;font-weight:600;margin-bottom:.75rem;">Séance ${i+1} — ${s.title}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${s.cours_url ? `<a href="${s.cours_url}" target="_blank" class="btn btn-outline btn-sm"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> ${s.cours_title||'Cours'}</a>` : ''}
+            ${s.doc_url ? `<a href="${s.doc_url}" target="_blank" class="btn btn-outline btn-sm"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ${s.doc_title||'Document'}</a>` : ''}
+            ${s.td_id ? `<button class="btn btn-outline btn-sm" onclick="navigate('td')"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg> Travail dirigé</button>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>`).join(''));
+}
+
+function renderSequencesTeacher(sequences, tds) {
+  setContent(`
+    <div class="panel">
+      <div class="panel-title">Créer une nouvelle séquence</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="form-group"><label class="form-label">Titre de la séquence</label><input class="form-input" id="seq-title" placeholder="Ex: L'énergie électrique"></div>
+        <div class="form-group"><label class="form-label">Classe</label><select class="form-select" id="seq-class"><option value="seconde">Seconde</option><option value="premiere">Première</option><option value="terminale">Terminale</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Description</label><input class="form-input" id="seq-desc" placeholder="Courte description de la séquence"></div>
+      <div class="form-group"><label class="form-label">Objectifs</label><textarea class="answer-input" id="seq-obj" placeholder="Objectifs pédagogiques de la séquence…" style="min-height:60px;"></textarea></div>
+      <button class="btn btn-primary" onclick="createSequence()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Créer la séquence
+      </button>
+    </div>
+
+    ${['seconde','premiere','terminale'].map(c => {
+      const seqs = sequences.filter(s => s.classe === c);
+      return `
+        <div class="section-heading">Classe de ${c}</div>
+        ${seqs.length === 0 ? '<p style="font-size:.8rem;color:var(--faint);margin-bottom:1rem;">Aucune séquence.</p>' :
+          seqs.map((seq, si) => `
+          <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Séquence ${si+1} — ${seq.title}</div>
+                <div class="card-sub">${seq.description||''}</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-outline btn-sm" onclick="showAddSeance('${seq.id}', '${seq.classe}')">+ Séance</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteSequence('${seq.id}')">Suppr.</button>
+              </div>
+            </div>
+            ${seq.objectifs ? `<div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem;font-style:italic;">${seq.objectifs}</div>` : ''}
+            ${(seq.seances||[]).sort((a,b)=>a.position-b.position).map((s,i) => `
+              <div style="border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:.5rem;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:.82rem;font-weight:600;">Séance ${i+1} — ${s.title}</div>
+                  <div style="font-size:.75rem;color:var(--faint);margin-top:2px;">
+                    ${s.cours_url ? '📖 Cours ' : ''}${s.doc_url ? '📄 Document ' : ''}${s.td_id ? '✏️ TD' : ''}
+                  </div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="deleteSeance('${s.id}')">Retirer</button>
+              </div>`).join('')}
+            <div id="seance-form-${seq.id}" style="display:none;margin-top:.75rem;border:1px solid var(--border);border-radius:var(--radius);padding:1rem;background:var(--surface);">
+              <div style="font-size:.82rem;font-weight:600;margin-bottom:.75rem;">Nouvelle séance</div>
+              <div class="form-group"><label class="form-label">Titre de la séance</label><input class="form-input" id="seance-title-${seq.id}" placeholder="Ex: Séance 1 — Introduction"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group"><label class="form-label">Titre du cours</label><input class="form-input" id="seance-cours-title-${seq.id}" placeholder="Ex: Loi d'Ohm"></div>
+                <div class="form-group"><label class="form-label">Lien cours (URL)</label><input class="form-input" id="seance-cours-url-${seq.id}" placeholder="https://..."></div>
+                <div class="form-group"><label class="form-label">Titre du document</label><input class="form-input" id="seance-doc-title-${seq.id}" placeholder="Ex: Schéma moteur"></div>
+                <div class="form-group"><label class="form-label">Lien document (URL)</label><input class="form-input" id="seance-doc-url-${seq.id}" placeholder="https://..."></div>
+              </div>
+              <div class="form-group"><label class="form-label">TD associé (optionnel)</label>
+                <select class="form-select" id="seance-td-${seq.id}">
+                  <option value="">— Aucun TD —</option>
+                  ${tds.filter(t=>t.classe===seq.classe).map(t=>`<option value="${t.id}">${t.title}</option>`).join('')}
+                </select>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-primary btn-sm" onclick="createSeance('${seq.id}')">Ajouter la séance</button>
+                <button class="btn btn-outline btn-sm" onclick="document.getElementById('seance-form-${seq.id}').style.display='none'">Annuler</button>
+              </div>
+            </div>
+          </div>`).join('')}
+      `}).join('')}
+  `);
+}
+
+function showAddSeance(seqId, classe) {
+  const form = document.getElementById('seance-form-' + seqId);
+  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function createSequence() {
+  const title = document.getElementById('seq-title').value.trim();
+  const classe = document.getElementById('seq-class').value;
+  const description = document.getElementById('seq-desc').value.trim();
+  const objectifs = document.getElementById('seq-obj').value.trim();
+  if (!title) { toast('Donnez un titre à la séquence.'); return; }
+  const { data: existing } = await supabaseClient.from('sequences').select('position').eq('classe', classe).order('position', {ascending:false}).limit(1);
+  const position = existing && existing.length > 0 ? existing[0].position + 1 : 0;
+  const { error } = await supabaseClient.from('sequences').insert({ title, classe, description, objectifs, position });
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Séquence créée !');
+  renderSequences();
+}
+
+async function createSeance(seqId) {
+  const title = document.getElementById('seance-title-' + seqId).value.trim();
+  const cours_title = document.getElementById('seance-cours-title-' + seqId).value.trim();
+  const cours_url = document.getElementById('seance-cours-url-' + seqId).value.trim();
+  const doc_title = document.getElementById('seance-doc-title-' + seqId).value.trim();
+  const doc_url = document.getElementById('seance-doc-url-' + seqId).value.trim();
+  const td_id = document.getElementById('seance-td-' + seqId).value || null;
+  if (!title) { toast('Donnez un titre à la séance.'); return; }
+  const { data: existing } = await supabaseClient.from('seances').select('position').eq('sequence_id', seqId).order('position', {ascending:false}).limit(1);
+  const position = existing && existing.length > 0 ? existing[0].position + 1 : 0;
+  const { error } = await supabaseClient.from('seances').insert({ sequence_id: seqId, title, cours_title, cours_url, doc_title, doc_url, td_id, position });
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Séance ajoutée !');
+  renderSequences();
+}
+
+async function deleteSequence(id) {
+  if (!confirm('Supprimer cette séquence et toutes ses séances ?')) return;
+  await supabaseClient.from('seances').delete().eq('sequence_id', id);
+  await supabaseClient.from('sequences').delete().eq('id', id);
+  toast('Séquence supprimée.');
+  renderSequences();
+}
+
+async function deleteSeance(id) {
+  if (!confirm('Retirer cette séance ?')) return;
+  await supabaseClient.from('seances').delete().eq('id', id);
+  toast('Séance retirée.');
+  renderSequences();
+}
+
+// ── START ─────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
