@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -652,6 +653,13 @@ let currentPage = 'dashboard';
 
 // ── INIT ─────────────────────────────────────────────────────────
 async function init() {
+  // Credentials pre-configured
+  if (!localStorage.getItem('ge_supabase_config')) {
+    localStorage.setItem('ge_supabase_config', JSON.stringify({
+      url: 'https://odgxfgcbvixxdhrjkvsg.supabase.co',
+      key: 'sb_publishable_4_39D9oN678-4UWqbUoYXA_o1ZJTkvi'
+    }));
+  }
   const config = getConfig();
   if (!config) {
     document.getElementById('loading').style.display = 'none';
@@ -905,12 +913,23 @@ function renderResourcePage(items, type, title, isTeacher) {
         </div>`).join('')}
       <div class="panel" style="margin-top:1rem;">
         <div class="panel-title">Ajouter une ressource</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div class="form-group"><label class="form-label">Titre</label><input class="form-input" id="res-title" placeholder="Ex: Loi d'Ohm"></div>
           <div class="form-group"><label class="form-label">Classe</label><select class="form-select" id="res-class"><option value="seconde">Seconde</option><option value="premiere">Première</option><option value="terminale">Terminale</option></select></div>
-          <div class="form-group"><label class="form-label">Lien (URL)</label><input class="form-input" id="res-url" placeholder="https://..."></div>
         </div>
-        <button class="btn btn-primary" onclick="addResource('${type}')">
+        <div class="form-group">
+          <label class="form-label">Fichier (Word, PDF) — ou lien URL ci-dessous</label>
+          <label class="file-upload-zone" for="res-file" style="margin-bottom:.5rem;">
+            <div class="file-upload-icon">📎</div>
+            <div class="file-upload-text" id="res-file-name">Cliquez pour choisir un fichier PDF ou Word</div>
+            <input type="file" id="res-file" accept=".pdf,.doc,.docx,.ppt,.pptx" onchange="document.getElementById('res-file-name').textContent = this.files[0]?.name || 'Cliquez pour choisir un fichier'">
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ou lien URL (optionnel si fichier déjà déposé)</label>
+          <input class="form-input" id="res-url" placeholder="https://...">
+        </div>
+        <button class="btn btn-primary" id="res-submit-btn" onclick="addResource('${type}')">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Publier
         </button>
@@ -931,9 +950,27 @@ function renderResourcePage(items, type, title, isTeacher) {
 async function addResource(type) {
   const title = document.getElementById('res-title').value.trim();
   const classe = document.getElementById('res-class').value;
-  const url = document.getElementById('res-url').value.trim();
+  const urlInput = document.getElementById('res-url').value.trim();
+  const fileInput = document.getElementById('res-file');
   if (!title) { toast('Donnez un titre à la ressource.'); return; }
-  const { error } = await supabaseClient.from('resources').insert({ title, classe, url: url||null, type });
+
+  let url = urlInput || null;
+
+  if (fileInput && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const ext = file.name.split('.').pop();
+    const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `resources/${classe}/${Date.now()}_${safeName}`;
+    const btn = document.getElementById('res-submit-btn');
+    if (btn) { btn.textContent = 'Envoi en cours…'; btn.disabled = true; }
+    const { error: upErr } = await supabaseClient.storage.from('resources').upload(path, file, { upsert: true });
+    if (upErr) { toast('Erreur upload : ' + upErr.message); if(btn){btn.textContent='Publier';btn.disabled=false;} return; }
+    const { data: urlData } = supabaseClient.storage.from('resources').getPublicUrl(path);
+    url = urlData.publicUrl;
+    if (btn) { btn.textContent = 'Publier'; btn.disabled = false; }
+  }
+
+  const { error } = await supabaseClient.from('resources').insert({ title, classe, url, type });
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Ressource publiée !');
   if (type === 'document') renderDocuments(); else renderCours();
@@ -1332,8 +1369,20 @@ function renderSequencesStudent(sequences) {
     setContent('<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><p>Aucune séquence disponible pour votre classe.</p></div>');
     return;
   }
-  setContent(sequences.map((seq, si) => `
-    <div class="card" style="margin-bottom:1rem;">
+  const sommaire = `
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div style="font-size:.82rem;font-weight:600;margin-bottom:.75rem;padding-bottom:.6rem;border-bottom:1px solid var(--border);">
+        Sommaire — ${sequences.length} séquence(s)
+      </div>
+      ${sequences.map((seq, si) => `
+        <a href="#seq-${si}" style="display:flex;align-items:center;gap:10px;padding:.45rem 0;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);">
+          <span style="font-size:.72rem;font-weight:600;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 8px;min-width:24px;text-align:center;">${si+1}</span>
+          <span style="font-size:.82rem;flex:1;">${seq.title}</span>
+          <span style="font-size:.75rem;color:var(--faint);">${(seq.seances||[]).length} séance(s)</span>
+        </a>`).join('')}
+    </div>`;
+  setContent(sommaire + sequences.map((seq, si) => `
+    <div class="card" style="margin-bottom:1rem;" id="seq-${si}">
       <div class="card-header">
         <div>
           <div class="card-title">Séquence ${si+1} — ${seq.title}</div>
